@@ -201,6 +201,10 @@ int main(){
 			
 			new_scan = true;
 			// TODO: (Filter scan using voxel filter)
+			pcl::VoxelGrid<PointT> sor;
+			sor.setInputCloud (scanCloud);
+			sor.setLeafSize (0.1f, 0.1f, 0.1f);
+			sor.filter (*cloudFiltered);
 
 			// TODO: Find pose transform by using ICP or NDT matching
 			//pose = ....
