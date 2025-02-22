@@ -144,6 +144,7 @@ int main(){
 
 	typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr scanCloud (new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr rotatedCloud (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr transformedCloud (new pcl::PointCloud<PointT>);
 
 	lidar->Listen([&new_scan, &lastScanTime, &scanCloud](auto data){
@@ -207,20 +208,37 @@ int main(){
 			sor.setLeafSize (0.5f, 0.5f, 0.5f);
 			sor.filter (*cloudFiltered);
 
-			// TODO: Find pose transform by using ICP or NDT matching
-			//pose = ....
-
-			const float theta = M_PI/4;
-			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
-			 Eigen::Affine3f transform_1 = Eigen::Affine3f::Identity();
-
+			// Fix 90 degrees rotation
+			const float theta = M_PI/2;
+			Eigen::Affine3f transform_1 = Eigen::Affine3f::Identity();
  			// Define a translation of 2.5 meters on the x axis.
 			transform_1.translation() << 0.0, 0.0, 0.0;
-
 			// The same rotation matrix as before; theta radians around Z axis
 			transform_1.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+			pcl::transformPointCloud (*cloudFiltered, *rotatedCloud, transform_1);
 
-			pcl::transformPointCloud (*cloudFiltered, *transformedCloud, transform_1);
+			// TODO: Find pose transform by using ICP or NDT matching
+			//pose = ....
+			pcl::NormalDistributionsTransform<PointT, PointT> ndt;
+ 			ndt.setTransformationEpsilon (0.01); 
+ 			ndt.setStepSize (0.1);
+ 			ndt.setResolution (1.0);
+ 			ndt.setMaximumIterations (35);
+			ndt.setInputSource (transformedCloud);
+			ndt.setInputTarget (mapCloud);
+
+			// Set initial alignment estimate found using robot odometry.
+			Eigen::AngleAxisf init_rotation (0, Eigen::Vector3f::UnitZ ());
+			Eigen::Translation3f init_translation (0, 0, 0);
+			Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
+			pcl::PointCloud<PointT>::Ptr output_cloud (new pcl::PointCloud<PointT>);
+			ndt.align (*output_cloud, init_guess);
+
+  			std::cout << "Normal Distributions Transform has " << (ndt.hasConverged ()?"converged":"not converged")
+            	<< ", score: " << ndt.getFitnessScore () << std::endl;
+
+			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
+			pcl::transformPointCloud (*input_cloud, *output_cloud, ndt.getFinalTransformation ());
 
 			viewer->removePointCloud("scan");
 			// TODO: Change `scanCloud` below to your transformed scan
