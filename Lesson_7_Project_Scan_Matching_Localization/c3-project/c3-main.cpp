@@ -144,6 +144,7 @@ int main(){
 
 	typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr scanCloud (new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr transformedCloud (new pcl::PointCloud<PointT>);
 
 	lidar->Listen([&new_scan, &lastScanTime, &scanCloud](auto data){
 
@@ -203,17 +204,27 @@ int main(){
 			// TODO: (Filter scan using voxel filter)
 			pcl::VoxelGrid<PointT> sor;
 			sor.setInputCloud (scanCloud);
-			sor.setLeafSize (0.1f, 0.1f, 0.1f);
+			sor.setLeafSize (0.5f, 0.5f, 0.5f);
 			sor.filter (*cloudFiltered);
 
 			// TODO: Find pose transform by using ICP or NDT matching
 			//pose = ....
 
+			const float theta = M_PI/4;
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
+			 Eigen::Affine3f transform_1 = Eigen::Affine3f::Identity();
+
+ 			// Define a translation of 2.5 meters on the x axis.
+			transform_1.translation() << 0.0, 0.0, 0.0;
+
+			// The same rotation matrix as before; theta radians around Z axis
+			transform_1.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
+
+			pcl::transformPointCloud (*cloudFiltered, *transformedCloud, transform_1);
 
 			viewer->removePointCloud("scan");
 			// TODO: Change `scanCloud` below to your transformed scan
-			renderPointCloud(viewer, scanCloud, "scan", Color(1,0,0) );
+			renderPointCloud(viewer, transformedCloud, "scan", Color(1,0,0) );
 
 			viewer->removeAllShapes();
 			drawCar(pose, 1,  Color(0,1,0), 0.35, viewer);
