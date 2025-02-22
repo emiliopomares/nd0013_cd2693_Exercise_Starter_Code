@@ -246,7 +246,7 @@ int main(){
 			viewer->removePointCloud("scan");
 			viewer->removePointCloud("estimated");
 			// TODO: Change `scanCloud` below to your transformed scan
-			renderPointCloud(viewer, alignedCloud, "estimated", Color(1,0,0) );
+			renderPointCloud(viewer, transformedCloud, "estimated", Color(1,0,0) );
 			renderPointCloud(viewer, rotatedCloud, "scan", Color(1,1,0) );
 
 			viewer->removeAllShapes();
