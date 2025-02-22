@@ -206,7 +206,7 @@ int main(){
 			// TODO: (Filter scan using voxel filter)
 			pcl::VoxelGrid<PointT> sor;
 			sor.setInputCloud (scanCloud);
-			sor.setLeafSize (0.5f, 0.5f, 0.5f);
+			sor.setLeafSize (0.075f, 0.075f, 0.075f);
 			sor.filter (*cloudFiltered);
 
 			// Fix 90 degrees rotation
@@ -221,14 +221,14 @@ int main(){
 			// TODO: Find pose transform by using ICP or NDT matching
 			//pose = ....
 			pcl::NormalDistributionsTransform<PointT, PointT> ndt;
- 			ndt.setTransformationEpsilon (0.01); 
+ 			ndt.setTransformationEpsilon (0.005); 
  			ndt.setStepSize (0.1);
- 			ndt.setResolution (1.0);
- 			ndt.setMaximumIterations (35);
+ 			ndt.setResolution (0.1);
+ 			ndt.setMaximumIterations (75);
 			ndt.setInputSource (rotatedCloud);
 			ndt.setInputTarget (mapCloud);
 
-			// Set initial alignment estimate found using robot odometry.
+			// Set initial alignment estimate from updated pose.
 			Eigen::AngleAxisf init_rotation (pose.rotation.yaw, Eigen::Vector3f::UnitZ ());
 			Eigen::Translation3f init_translation (pose.position.x, pose.position.y, pose.position.z);
 			Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
