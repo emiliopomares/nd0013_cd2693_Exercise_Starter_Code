@@ -145,6 +145,7 @@ int main(){
 	typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr scanCloud (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr rotatedCloud (new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr alignedCloud (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr transformedCloud (new pcl::PointCloud<PointT>);
 
 	lidar->Listen([&new_scan, &lastScanTime, &scanCloud](auto data){
@@ -181,7 +182,7 @@ int main(){
 		viewer->removeShape("box0");
 		viewer->removeShape("boxFill0");
 		Pose truePose = Pose(Point(vehicle->GetTransform().location.x, vehicle->GetTransform().location.y, vehicle->GetTransform().location.z), Rotate(vehicle->GetTransform().rotation.yaw * pi/180, vehicle->GetTransform().rotation.pitch * pi/180, vehicle->GetTransform().rotation.roll * pi/180)) - poseRef;
-		drawCar(truePose, 0,  Color(1,0,0), 0.7, viewer);
+		drawCar(truePose, 0,  Color(1,0,0), 0.7, viewer); // True pose in red
 		double theta = truePose.rotation.yaw;
 		double stheta = control.steer * pi/4 + theta;
 		viewer->removeShape("steer");
@@ -224,28 +225,32 @@ int main(){
  			ndt.setStepSize (0.1);
  			ndt.setResolution (1.0);
  			ndt.setMaximumIterations (35);
-			ndt.setInputSource (transformedCloud);
+			ndt.setInputSource (rotatedCloud);
 			ndt.setInputTarget (mapCloud);
 
 			// Set initial alignment estimate found using robot odometry.
-			Eigen::AngleAxisf init_rotation (0, Eigen::Vector3f::UnitZ ());
-			Eigen::Translation3f init_translation (0, 0, 0);
+			Eigen::AngleAxisf init_rotation (truePose.rotation.yaw, Eigen::Vector3f::UnitZ ());
+			Eigen::Translation3f init_translation (truePose.position.x, truePose.position.y, truePose.position.z);
 			Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
-			pcl::PointCloud<PointT>::Ptr output_cloud (new pcl::PointCloud<PointT>);
-			ndt.align (*output_cloud, init_guess);
+			
+			ndt.align (*alignedCloud, init_guess);
 
   			std::cout << "Normal Distributions Transform has " << (ndt.hasConverged ()?"converged":"not converged")
             	<< ", score: " << ndt.getFitnessScore () << std::endl;
-
+			
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
-			pcl::transformPointCloud (*input_cloud, *output_cloud, ndt.getFinalTransformation ());
+			pose = getPose(ndt.getFinalTransformation ().cast<double>());
+			std::cout << "Pose : " << pose.position.x << ", " << pose.position.y << ", " << pose.position.z << " : " << pose.rotation.yaw << "\n";
+			pcl::transformPointCloud (*rotatedCloud, *transformedCloud, ndt.getFinalTransformation ());
 
 			viewer->removePointCloud("scan");
+			viewer->removePointCloud("estimated");
 			// TODO: Change `scanCloud` below to your transformed scan
-			renderPointCloud(viewer, transformedCloud, "scan", Color(1,0,0) );
+			renderPointCloud(viewer, alignedCloud, "estimated", Color(1,0,0) );
+			renderPointCloud(viewer, rotatedCloud, "scan", Color(1,1,0) );
 
 			viewer->removeAllShapes();
-			drawCar(pose, 1,  Color(0,1,0), 0.35, viewer);
+			drawCar(pose, 1,  Color(0,1,0), 0.35, viewer); // Estimated pose in green
           
           	double poseError = sqrt( (truePose.position.x - pose.position.x) * (truePose.position.x - pose.position.x) + (truePose.position.y - pose.position.y) * (truePose.position.y - pose.position.y) );
 			if(poseError > maxError)
