@@ -230,7 +230,7 @@ int main(){
 
 			// Set initial alignment estimate found using robot odometry.
 			Eigen::AngleAxisf init_rotation (truePose.rotation.yaw, Eigen::Vector3f::UnitZ ());
-			Eigen::Translation3f init_translation (truePose.position.x, truePose.position.y, truePose.position.z);
+			Eigen::Translation3f init_translation (pose.position.x, pose.position.y, pose.position.z);
 			Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
 			
 			ndt.align (*alignedCloud, init_guess);
@@ -239,7 +239,11 @@ int main(){
             	<< ", score: " << ndt.getFitnessScore () << std::endl;
 			
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
-			pose = getPose(ndt.getFinalTransformation ().cast<double>());
+			Pose relpose = getPose(ndt.getFinalTransformation ().cast<double>());
+			pose.position.x += relpose.position.x;
+			pose.position.y += relpose.position.y;
+			pose.position.z += relpose.position.z;
+			pose.rotation.yaw += relpose.rotation.yaw;
 			std::cout << "Pose : " << pose.position.x << ", " << pose.position.y << ", " << pose.position.z << " : " << pose.rotation.yaw << "\n";
 			pcl::transformPointCloud (*rotatedCloud, *transformedCloud, ndt.getFinalTransformation ());
 
