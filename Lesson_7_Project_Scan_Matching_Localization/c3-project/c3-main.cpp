@@ -214,11 +214,12 @@ int main(){
 			sor.setLeafSize (0.75f, 0.75f, 0.75f);
 			sor.filter (*cloudFiltered);
 
-			// Fix 90 degrees rotation
+			// Fix scan coming in non-matching orientation
 			const float theta = M_PI/2;
 			Eigen::Affine3f transform_1 = Eigen::Affine3f::Identity();
  			// Define a translation of 2.5 meters on the x axis.
 			transform_1.translation() << 0.0, 0.0, 0.0;
+			transform_1.scale(Eigen::Vector3f(1.0, 1.0, -1.0));
 			// The same rotation matrix as before; theta radians around Z axis
 			transform_1.rotate (Eigen::AngleAxisf (theta, Eigen::Vector3f::UnitZ()));
 			pcl::transformPointCloud (*cloudFiltered, *rotatedCloud, transform_1);
@@ -235,6 +236,7 @@ int main(){
 
 			// Set initial alignment estimate from updated pose.
 			Eigen::AngleAxisf init_rotation (pose.rotation.yaw, Eigen::Vector3f::UnitZ ());
+			//Eigen::Translation3f init_translation (pose.position.x+1.25, pose.position.y, pose.position.z);
 			Eigen::Translation3f init_translation (pose.position.x+1.25, pose.position.y, pose.position.z);
 			Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
 			
@@ -252,7 +254,7 @@ int main(){
 			
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
 			pose = getPose(ndt.getFinalTransformation ().cast<double>());
-			pose.position.x += 0.75;
+			pose.position.x += 0;//0.75;
 			std::cout << "(" << (secondsSinceEpoch-startSecondsSinceEpoch) << ", " << pose.position.x << ", " << pose.position.y << ", " << pose.position.z << ", " << pose.rotation.yaw << ")\n";
 			pcl::transformPointCloud (*rotatedCloud, *transformedCloud, ndt.getFinalTransformation ());
 
