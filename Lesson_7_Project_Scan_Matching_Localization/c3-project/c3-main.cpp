@@ -71,6 +71,7 @@ void Accuate(ControlState response, cc::Vehicle::Control& state){
 		else{
 			state.reverse = false;
 			state.throttle = min(response.t, 1.0f);
+			std::cout << "Throttle: " << state.throttle << "\n";
 		}
 	}
 	else if(response.t < 0){
@@ -198,6 +199,7 @@ int main(){
 
 			Accuate(accuate, control);
 			vehicle->ApplyControl(control);
+			std::cout << " Applying control\n";
 		}
 
   		viewer->spinOnce ();
@@ -208,7 +210,8 @@ int main(){
 			// TODO: (Filter scan using voxel filter)
 			pcl::VoxelGrid<PointT> sor;
 			sor.setInputCloud (scanCloud);
-			sor.setLeafSize (0.275f, 0.275f, 0.275f);
+			//sor.setLeafSize (0.275f, 0.275f, 0.275f);
+			sor.setLeafSize (0.75f, 0.75f, 0.75f);
 			sor.filter (*cloudFiltered);
 
 			// Fix 90 degrees rotation
@@ -249,6 +252,7 @@ int main(){
 			
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
 			pose = getPose(ndt.getFinalTransformation ().cast<double>());
+			pose.position.x += 0.75;
 			std::cout << "(" << (secondsSinceEpoch-startSecondsSinceEpoch) << ", " << pose.position.x << ", " << pose.position.y << ", " << pose.position.z << ", " << pose.rotation.yaw << ")\n";
 			pcl::transformPointCloud (*rotatedCloud, *transformedCloud, ndt.getFinalTransformation ());
 
