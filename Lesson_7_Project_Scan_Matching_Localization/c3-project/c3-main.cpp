@@ -148,6 +148,8 @@ int main(){
 	typename pcl::PointCloud<PointT>::Ptr alignedCloud (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr transformedCloud (new pcl::PointCloud<PointT>);
 
+	startTime = std::chrono::system_clock::now();
+
 	lidar->Listen([&new_scan, &lastScanTime, &scanCloud](auto data){
 
 		if(new_scan){
@@ -221,9 +223,9 @@ int main(){
 			// TODO: Find pose transform by using ICP or NDT matching
 			//pose = ....
 			pcl::NormalDistributionsTransform<PointT, PointT> ndt;
- 			ndt.setTransformationEpsilon (0.005); 
- 			ndt.setStepSize (0.1);
- 			ndt.setResolution (0.1);
+ 			ndt.setTransformationEpsilon (0.01); 
+ 			ndt.setStepSize (0.25);
+ 			ndt.setResolution (2.5);
  			ndt.setMaximumIterations (75);
 			ndt.setInputSource (rotatedCloud);
 			ndt.setInputTarget (mapCloud);
@@ -235,12 +237,19 @@ int main(){
 			
 			ndt.align (*alignedCloud, init_guess);
 
-  			std::cout << "Normal Distributions Transform has " << (ndt.hasConverged ()?"converged":"not converged")
-            	<< ", score: " << ndt.getFitnessScore () << std::endl;
+  			//std::cout << "Normal Distributions Transform has " << (ndt.hasConverged ()?"converged":"not converged")
+            //	<< ", score: " << ndt.getFitnessScore () << std::endl;
+
+			// Convert time_point to duration since epoch
+    		auto duration = lastScanTime.time_since_epoch();
+    		// Convert duration to seconds as double
+    		double secondsSinceEpoch = std::chrono::duration<double>(duration).count();
+			auto startDuration = startTime.time_since_epoch();
+			double startSecondsSinceEpoch = std::chrono::duration<double>(startDuration).count();
 			
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
 			pose = getPose(ndt.getFinalTransformation ().cast<double>());
-			std::cout << "Pose : " << pose.position.x << ", " << pose.position.y << ", " << pose.position.z << " : " << pose.rotation.yaw << "\n";
+			std::cout << "(" << (secondsSinceEpoch-startSecondsSinceEpoch) << ", " << pose.position.x << ", " << pose.position.y << ", " << pose.position.z << ", " << pose.rotation.yaw << ")\n";
 			pcl::transformPointCloud (*rotatedCloud, *transformedCloud, ndt.getFinalTransformation ());
 
 			viewer->removePointCloud("scan");
